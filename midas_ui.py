@@ -10,116 +10,144 @@ from tools import (
 from typing import Optional, Callable
 
 
+# 定义一个名为 EditableDataFrame 的类，继承自 ft.UserControl
 class EditableDataFrame(ft.UserControl):
     def __init__(
         self,
-        df: pd.DataFrame,
-        on_change: Optional[Callable[[pd.DataFrame], None]] = None,
-        max_height: int = 400,
+        df: pd.DataFrame,  # 传入一个 Pandas DataFrame 对象，用于初始化表格数据
+        on_change: Optional[
+            Callable[[pd.DataFrame], None]
+        ] = None,  # 可选的回调函数，当表格数据改变时调用
+        max_height: int = 400,  # 表格的最大高度，默认为 400 像素
     ):
-        super().__init__()
-        self.df = df.copy()
-        self.on_change = on_change
-        self.max_height = max_height
-        self.edited_cells = {}
+        super().__init__()  # 调用父类的构造函数
+        self.df = df.copy()  # 深拷贝传入的 DataFrame，避免对原始数据的修改
+        self.on_change = on_change  # 保存传入的回调函数
+        self.max_height = max_height  # 保存传入的最大高度
+        self.edited_cells = {}  # 用于存储已编辑的单元格
 
     def build(self):
+        """
+        构建并返回用户界面的控件树
+        """
         # 创建表格
         self.data_table = ft.DataTable(
-            columns=self._create_columns(),
-            rows=self._create_rows(),
-            vertical_lines=ft.border.BorderSide(1, "#E0E0E0"),
-            horizontal_lines=ft.border.BorderSide(1, "#E0E0E0"),
-            heading_row_color="#F5F5F5",
-            heading_row_height=50,
-            data_row_max_height=45,
-            width=900,
+            columns=self._create_columns(),  # 调用 _create_columns 方法创建表格列
+            rows=self._create_rows(),  # 调用 _create_rows 方法创建表格行
+            vertical_lines=ft.border.BorderSide(1, "#E0E0E0"),  # 设置垂直分割线样式
+            horizontal_lines=ft.border.BorderSide(1, "#E0E0E0"),  # 设置水平分割线样式
+            heading_row_color="#F5F5F5",  # 设置表头行的背景颜色
+            heading_row_height=50,  # 设置表头行的高度
+            data_row_max_height=45,  # 设置数据行的最大高度
+            width=900,  # 设置表格的宽度
         )
 
         # 包装在滚动容器中
         return ft.Container(
             content=ft.Column(
-                controls=[self.data_table],
-                scroll=ft.ScrollMode.ALWAYS,
-                height=300,
+                controls=[self.data_table],  # 将表格添加到 Column 控件中
+                scroll=ft.ScrollMode.ALWAYS,  # 设置 Column 控件的滚动模式为始终滚动
+                height=300,  # 设置 Column 控件的高度
             )
         )
 
     def _create_columns(self):
-        columns = []
-        for col in self.df.columns:
+        """
+        创建并返回表格的列定义
+        """
+        columns = []  # 初始化一个空列表，用于存储列定义
+        for col in self.df.columns:  # 遍历 DataFrame 的列名
             columns.append(
                 ft.DataColumn(
-                    ft.Text(str(col), weight=ft.FontWeight.BOLD, width=85),
-                    numeric=pd.api.types.is_numeric_dtype(self.df[col]),
+                    ft.Text(
+                        str(col), weight=ft.FontWeight.BOLD, width=85
+                    ),  # 创建一个 DataColumn，包含一个 Text 控件，显示列名，并设置字体加粗和宽度
+                    numeric=pd.api.types.is_numeric_dtype(
+                        self.df[col]
+                    ),  # 根据列的数据类型设置 numeric 属性
                 )
             )
-        return columns
+        return columns  # 返回列定义列表
 
     def _create_rows(self):
-        rows = []
-        for row_idx, row in self.df.iterrows():
-            cells = []
-            for col_idx, value in enumerate(row):
+        """
+        创建并返回表格的行定义
+        """
+        rows = []  # 初始化一个空列表，用于存储行定义
+        for row_idx, row in self.df.iterrows():  # 遍历 DataFrame 的行
+            cells = []  # 初始化一个空列表，用于存储单元格定义
+            for col_idx, value in enumerate(row):  # 遍历行中的每个值
                 cell = ft.DataCell(
                     ft.TextField(
-                        value=str(value),
-                        border="none",
-                        height=50,
-                        width=150,
-                        # text_size=14,
-                        # content_padding=5,
-                        read_only=True,
+                        value=str(value),  # 创建一个 TextField 控件，显示单元格的值
+                        border="none",  # 设置边框为无
+                        height=50,  # 设置高度
+                        width=150,  # 设置宽度
+                        # text_size=14,  # 设置字体大小
+                        # content_padding=5,  # 设置内容内边距
+                        read_only=True,  # 设置为只读
                         on_focus=lambda e, r=row_idx, c=col_idx: self._handle_cell_focus(
                             e, r, c
-                        ),
+                        ),  # 设置获得焦点时的回调函数
                         on_blur=lambda e, r=row_idx, c=col_idx: self._handle_cell_blur(
                             e, r, c
-                        ),
+                        ),  # 设置失去焦点时的回调函数
                     )
                 )
-                cells.append(cell)
-            rows.append(ft.DataRow(cells=cells))
-        return rows
+                cells.append(cell)  # 将单元格添加到 cells 列表中
+            rows.append(
+                ft.DataRow(cells=cells)
+            )  # 将 cells 列表添加到 rows 列表中，创建一个 DataRow
+        return rows  # 返回行定义列表
 
     def _handle_cell_focus(self, e, row_idx, col_idx):
+        """
+        处理单元格获得焦点的事件
+        """
         # 双击启用编辑
-        tf = e.control
-        tf.read_only = False
-        tf.border = ft.InputBorder.OUTLINE
-        tf.update()
+        tf = e.control  # 获取触发事件的 TextField 控件
+        tf.read_only = False  # 设置为可编辑
+        tf.border = ft.InputBorder.OUTLINE  # 设置边框样式为外边框
+        tf.update()  # 更新控件状态
 
     def _handle_cell_blur(self, e, row_idx, col_idx):
-        tf = e.control
-        new_value = tf.value
-        col_name = self.df.columns[col_idx]
+        """
+        处理单元格失去焦点的事件
+        """
+        tf = e.control  # 获取触发事件的 TextField 控件
+        new_value = tf.value  # 获取编辑后的新值
+        col_name = self.df.columns[col_idx]  # 获取列名
 
         # 尝试转换数据类型
         try:
-            if pd.api.types.is_numeric_dtype(self.df[col_name]):
-                new_value = float(new_value) if "." in new_value else int(new_value)
-        except ValueError:
+            if pd.api.types.is_numeric_dtype(self.df[col_name]):  # 如果列是数值类型
+                new_value = (
+                    float(new_value) if "." in new_value else int(new_value)
+                )  # 将新值转换为浮点数或整数
+        except ValueError:  # 如果转换失败
             # 如果转换失败，恢复原值
-            new_value = self.df.iloc[row_idx, col_idx]
-            tf.value = str(new_value)
+            new_value = self.df.iloc[row_idx, col_idx]  # 恢复为原始值
+            tf.value = str(new_value)  # 设置 TextField 的值为原始值
 
-        # 更新DataFrame
-        self.df.iloc[row_idx, col_idx] = new_value
+        # 更新 DataFrame
+        self.df.iloc[row_idx, col_idx] = new_value  # 更新 DataFrame 中的值
 
         # 重置单元格样式
-        tf.read_only = True
-        tf.border = "none"
-        tf.update()
+        tf.read_only = True  # 设置为只读
+        tf.border = "none"  # 设置边框为无
+        tf.update()  # 更新控件状态
 
         # 触发回调
-        if self.on_change:
-            self.on_change(self.df)
+        if self.on_change:  # 如果存在回调函数
+            self.on_change(self.df)  # 调用回调函数，传入更新后的 DataFrame
 
     def update_data(self, new_df: pd.DataFrame):
-        """更新显示的数据"""
-        self.df = new_df.copy()
-        self.data_table.rows = self._create_rows()
-        self.update()
+        """
+        更新显示的数据
+        """
+        self.df = new_df.copy()  # 深拷贝传入的 DataFrame，避免对原始数据的修改
+        self.data_table.rows = self._create_rows()  # 重新创建表格行
+        self.update()  # 更新控件状态
 
 
 def main(page: ft.Page):
@@ -128,18 +156,21 @@ def main(page: ft.Page):
     )
 
     def handle_close_xlsx(e):
-        global df
-        page.close(dlg_modal)
-        df = pd.read_excel("init_tension.xlsx")
+        """
+        处理关闭选择xlsx文件的对话框事件
+        """
+        global df  # 声明df为全局变量
+        page.close(dlg_modal)  # 关闭对话框
+        df = pd.read_excel("init_tension.xlsx")  # 从xlsx文件中读取数据并更新df
         # 将DataFrame转换为JSON并保存为target.json和tension.json
-        target_json = Pretension_Loads_df_to_json(df)
-        with open("target.json", "w") as f:
-            json.dump(target_json, f)
-        with open("tension.json", "w") as f:
-            json.dump(target_json, f)
+        target_json = Pretension_Loads_df_to_json(df)  # 将DataFrame转换为JSON格式
+        with open("target.json", "w") as f:  # 打开target.json文件
+            json.dump(target_json, f)  # 将JSON数据写入文件
+        with open("tension.json", "w") as f:  # 打开tension.json文件
+            json.dump(target_json, f)  # 将JSON数据写入文件
 
         # 调用compute_tension函数进行迭代计算
-        df = compute_tension("tension.json", "target.json")
+        df = compute_tension("tension.json", "target.json")  # 调用compute_tension函数进行迭代计算
 
         df = pd.DataFrame(
             {
@@ -152,11 +183,15 @@ def main(page: ft.Page):
         )
 
         # 显示成功信息
-        message_text.value = "索力计算完成！"
-        data_frame.update_data(df)
-        page.update()
+        message_text.value = "索力计算完成！"  # 更新提示信息
+        data_frame.update_data(df)  # 更新数据框
+        page.update()  # 更新页面
+
 
     def handle_close_ui(e):
+        """
+        处理关闭选择UI表格的对话框事件
+        """
         global df
         page.close(dlg_modal)
         # 获取当前显示的数据
@@ -185,6 +220,7 @@ def main(page: ft.Page):
         data_frame.update_data(df)
         page.update()
 
+
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.fonts = {
         "MiSans": "fonts/MiSans-Regular.ttf",
@@ -199,7 +235,7 @@ def main(page: ft.Page):
     get_data_button = ft.ElevatedButton(
         content=ft.Row(
             [
-                ft.Icon(name=ft.icons.CALCULATE, color="white"),
+                ft.Icon(name=ft.Icons.GET_APP, color="white"),
                 ft.Text("获取初始信息", color="white", size=16),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
@@ -212,6 +248,10 @@ def main(page: ft.Page):
             animation_duration=300,
         ),
         on_click=lambda _: get_data(),
+    )
+
+    error_tolerance_input = ft.TextField(
+        label="误差允许值（百分比）", value="0.15", width=200
     )
 
     # 创建一个按钮用于开始计算
@@ -254,7 +294,12 @@ def main(page: ft.Page):
             content=ft.Column(
                 [
                     ft.Container(
-                        content=message_text, margin=ft.margin.only(bottom=30)
+                        content=ft.Row(
+                            [message_text, error_tolerance_input],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        ),
+                        margin=ft.margin.only(bottom=30),
+                        width=900,
                     ),
                     ft.Container(
                         content=data_frame,
@@ -282,11 +327,16 @@ def main(page: ft.Page):
     )
 
     def get_data():
+        """
+        获取索力数据并更新数据框
+        """
         try:
             # 调用MidasAPI获取索力数据
             data = MidasAPI("GET", "/db/PTNS")
+            # 将获取的数据保存为Excel文件
             Pretension_Loads_json_to_excel(data, "init_tension.xlsx")
 
+            # 从Excel文件中读取数据并更新数据框
             df = pd.read_excel("init_tension.xlsx")
 
             # 更新数据框
@@ -301,7 +351,11 @@ def main(page: ft.Page):
             message_text.value = f"获取索力数据时发生错误：{str(e)}"
             page.update()
 
+
     def start_calculation():
+        """
+        开始索力计算的函数
+        """
         try:
             # 弹出对话框，选择本地的init_tension.xlsx文件或者UI界面的表格作为数据源
             page.open(dlg_modal)
