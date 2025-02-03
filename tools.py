@@ -118,9 +118,32 @@ def Pretension_Loads_df_to_json(df):
 
 
 def truss_force_tablejson_to_table(json_data):
+    """
+    将包含桁架力信息的JSON数据转换为Pandas DataFrame
+
+    参数:
+        json_data (dict): 包含桁架力信息的JSON数据，格式如下：
+            {
+                "TrussForce": {
+                    "HEAD": ["列名1", "列名2", ...],
+                    "DATA": [
+                        ["值1", "值2", ...],
+                        ["值1", "值2", ...],
+                        ...
+                    ]
+                }
+            }
+
+    返回:
+        pd.DataFrame: 转换后的DataFrame，列名为HEAD中的值，数据为DATA中的值
+    """
+    # 从传入的JSON数据中提取"TrussForce"键对应的值
     data = json_data["TrussForce"]
+    # 提取"HEAD"键对应的值，作为DataFrame的列名
     headers = data["HEAD"]
+    # 使用"DATA"键对应的值创建DataFrame，列名为headers
     df = pd.DataFrame(data["DATA"], columns=headers)
+    # 返回转换后的DataFrame
     return df
 
 
@@ -176,24 +199,54 @@ def Pretension_Loads_excel_to_json(excel_file_path, json_file_path):
 
 
 class MidasConfig:
+    """
+    MidasConfig类用于从注册表中获取MIDAS连接信息，并提供base_url和api_key属性。
+
+    Attributes:
+        base_url (str): MIDAS API的基本URL。
+        api_key (str): 用于访问MIDAS API的API密钥。
+    """
+
     def __init__(self):
+        """
+        初始化MidasConfig类，获取MIDAS连接信息。
+
+        从注册表中读取URI、PORT和Key，并构建base_url。同时，尝试设置STARTUP值为1。
+
+        Raises:
+            WindowsError: 如果设置STARTUP值失败，会捕获WindowsError异常并忽略。
+        """
         self.base_url, self.api_key = self._get_midas_connection()
 
     def _get_midas_connection(self):
-        """从注册表获取MIDAS连接信息"""
+        """
+        从注册表获取MIDAS连接信息。
+
+        Returns:
+            tuple: 包含base_url和api_key的元组。
+        """
+        # 定义注册表路径
         reg_path = r"SOFTWARE\MIDAS\CVLwNX_CH\CONNECTION"
+        # 打开注册表键
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path) as key:
+            # 查询URI值
             uri = winreg.QueryValueEx(key, "URI")[0]
+            # 查询PORT值
             port = winreg.QueryValueEx(key, "PORT")[0]
+            # 查询Key值
             api_key = winreg.QueryValueEx(key, "Key")[0]
 
             # 设置STARTUP
             try:
+                # 设置STARTUP值为1
                 winreg.SetValueEx(key, "STARTUP", 0, winreg.REG_DWORD, 1)
             except WindowsError:
+                # 如果设置失败，忽略错误
                 pass
 
+        # 构建base_url
         base_url = f"https://{uri}:{port}/civil"
+        # 返回base_url和api_key
         return base_url, api_key
 
 
@@ -344,6 +397,7 @@ class EditableDataFrame(ft.Card):
         更新显示的数据
         """
         self.df = new_df.copy()  # 深拷贝传入的 DataFrame，避免对原始数据的修改
+        self.data_table.columns = self._create_columns()  # 重新创建表格标题栏
         self.data_table.rows = self._create_rows()  # 重新创建表格行
         self.update()  # 更新控件状态
 

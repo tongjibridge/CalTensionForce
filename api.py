@@ -18,8 +18,18 @@ base_url = midas_config.base_url
 api_key = midas_config.api_key
 
 
-# 定义一个名为 MidasAPI 的函数，用于与 Midas Civil API 进行交互
 def MidasAPI(method, command, body=None):
+    """
+    发送HTTP请求到Midas API并返回响应的JSON数据。
+    参数:
+        method (str): HTTP请求方法，如"GET"或"POST"。
+        command (str): Midas API的命令路径。
+        body (dict, 可选): 请求体的JSON数据。默认为None。
+    返回:
+        dict: 响应的JSON数据。
+    示例:
+        response_json = MidasAPI("GET", "/db/STAG")
+    """
     # 使用从MidasConfig获取的base_url和api_key
     headers = {"Content-Type": "application/json", "MAPI-Key": api_key}
     url = base_url + command
@@ -37,7 +47,6 @@ def MidasAPI(method, command, body=None):
 def delete_iteration_files():
     """
     删除当前目录下所有以"迭代"开头并以".xlsx"结尾的文件。
-
     这个函数遍历当前目录中的所有文件，检查每个文件名是否以"迭代"开头并以".xlsx"结尾。
     如果是，则删除该文件，并打印一条消息表示文件已被删除。
     """
@@ -53,7 +62,6 @@ def delete_iteration_files():
 def compute_tension(tension: str, target: str, eps: float = 0.15):
     """
     计算并调整索力，直到偏差百分比满足要求。
-
     :param tension: 包含索力数据的JSON文件路径。
     :param target: 目标索力数据的JSON文件路径。
     :param eps: 允许的最大偏差百分比，默认为0.15。
@@ -90,6 +98,7 @@ def compute_tension(tension: str, target: str, eps: float = 0.15):
     # 开始迭代，直到偏差百分比满足要求或达到最大迭代次数
     while True:
         n += 1
+
         # 如果迭代次数超过20次，跳出循环
         if n > 20:
             break
@@ -103,7 +112,7 @@ def compute_tension(tension: str, target: str, eps: float = 0.15):
                 "Argument": {
                     "TABLE_NAME": "TrussForce",
                     "TABLE_TYPE": "TRUSSFORCE",
-                    "EXPORT_PATH": "E:\\CAE\\model\\mgfl\\api\\Output2.json",
+                    "EXPORT_PATH": f"{current_folder}\\Output2.json",
                     "UNIT": {"FORCE": "kN", "DIST": "m"},
                     "STYLES": {"FORMAT": "Fixed", "PLACE": 12},
                     "COMPONENTS": [
@@ -251,11 +260,6 @@ if __name__ == "__main__":
     step_name = temp_value2["Step"].iloc[-3]
 
     # 格式化阶段步骤名称
-    ## 获取所有阶段的信息
-    allstage = MidasAPI("GET", "/db/STAG", {})
-    ## 获取最后一个阶段的信息
-    last_step_information = list(allstage["STAG"].items())[-1]
-    ## 获取最后一个阶段的名称
-    stagename = last_step_information[-1]["NAME"]
+
     STAGE_STEP = f"{stagename}:{step_name}"
     print(STAGE_STEP)
