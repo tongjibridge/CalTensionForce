@@ -266,5 +266,4 @@ def main(page: ft.Page):
             message_text.value = f"索力计算时发生错误：{str(e)}"
             page.update()
 
-
 ft.app(target=main)
